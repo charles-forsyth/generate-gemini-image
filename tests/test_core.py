@@ -1,7 +1,9 @@
-import pytest
 from unittest.mock import MagicMock, patch
-from pathlib import Path
+
+import pytest
+
 from generate_gemini_image.core import ImageGenerator
+
 
 @pytest.fixture
 def mock_genai_client():
