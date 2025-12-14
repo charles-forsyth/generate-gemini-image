@@ -29,7 +29,6 @@ def get_project_id(project_id_arg: Optional[str]) -> Optional[str]:
     if settings.project_id:
         return settings.project_id
 
-    # Try ADC
     try:
         _, project = google.auth.default()
         if project:
@@ -82,10 +81,11 @@ def init():
         raise typer.Exit(code=1) from e
 
 
-@app.command()
-def generate(
-    prompt: str = typer.Argument(
-        ..., help="The text prompt to generate an image from."
+@app.callback(invoke_without_command=True)
+def main(
+    ctx: typer.Context,
+    prompt: Optional[str] = typer.Option(
+        None, "--prompt", "-p", help="The text prompt to generate an image from."
     ),
     count: int = typer.Option(
         1, "--count", "-n", help="Number of images (Nano Banana strict)."
@@ -112,8 +112,21 @@ def generate(
     ),
 ):
     """
-    Generate images using Gemini 3 Pro (Nano Banana Pro) with enhancements.
+    Generate images using Gemini 3 Pro (Nano Banana Pro).
+    Run with --prompt to generate, or use the 'init' command.
     """
+    # If a subcommand (like 'init') is invoked, just return and let it run.
+    if ctx.invoked_subcommand is not None:
+        return
+
+    # If no subcommand, we expect generation arguments.
+    if not prompt:
+        # Show help if no prompt provided
+        console.print("[yellow]No command or prompt provided.[/yellow]")
+        console.print("Run [bold]generate-gemini-image --help[/bold] for usage.")
+        raise typer.Exit(code=0)
+
+    # --- Generation Logic ---
     if verbose:
         logger.setLevel(logging.DEBUG)
 
@@ -128,10 +141,11 @@ def generate(
     
     # Validate Auth
     if not resolved_api_key and not resolved_project_id:
-         raise typer.BadParameter(
-            "Authentication missing. Provide either --api-key (or API_KEY in env) "
+         console.print(
+            "[bold red]Authentication missing.[/bold red] Provide either --api-key (or API_KEY in env) "
             "OR --project-id (or PROJECT_ID/ADC)."
         )
+         raise typer.Exit(code=1)
 
     # "Nano Banana" Prompt Augmentation
     full_prompt = prompt
