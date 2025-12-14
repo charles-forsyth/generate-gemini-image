@@ -142,7 +142,8 @@ def main(
     # Validate Auth
     if not resolved_api_key and not resolved_project_id:
          console.print(
-            "[bold red]Authentication missing.[/bold red] Provide either --api-key (or API_KEY in env) "
+            "[bold red]Authentication missing.[/bold red] Provide either "
+            "--api-key (or API_KEY in env)\n"
             "OR --project-id (or PROJECT_ID/ADC)."
         )
          raise typer.Exit(code=1)
