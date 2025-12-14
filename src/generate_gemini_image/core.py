@@ -62,7 +62,6 @@ class ImageGenerator:
             "BLOCK_FEW": "BLOCK_ONLY_HIGH",
             "BLOCK_NONE": "BLOCK_NONE",
         }
-        # Return mapped value or original if not in map (assuming user knows valid enum)
         return mapping.get(level, level)
 
     def generate(
@@ -89,7 +88,9 @@ class ImageGenerator:
 
         saved_files = []
         
+        # Explicitly resolve the threshold here
         valid_threshold = self._resolve_safety_threshold(safety_filter_level)
+        logger.debug(f"Resolved Safety Threshold: {safety_filter_level} -> {valid_threshold}")
 
         # Gemini 3 Pro generates one image per request typically
         for i in range(count):
@@ -118,9 +119,7 @@ class ImageGenerator:
                             "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
                             "threshold": valid_threshold,
                         }
-                    ]
-                    if safety_filter_level
-                    else None,
+                    ],
                 }
 
                 response = self.client.models.generate_content(
