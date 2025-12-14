@@ -11,28 +11,41 @@ logger = logging.getLogger(__name__)
 
 
 class ImageGenerator:
-    def __init__(self, project_id: str, location: str, model_name: str):
+    def __init__(
+        self, 
+        model_name: str, 
+        api_key: Optional[str] = None,
+        project_id: Optional[str] = None, 
+        location: str = "us-central1"
+    ):
+        self.model_name = model_name
+        self.api_key = api_key
         self.project_id = project_id
         self.location = location
-        self.model_name = model_name
         self._client = None
 
-        # Ensure environment variables are set for Vertex AI if needed
-        if project_id:
-            os.environ["GOOGLE_CLOUD_PROJECT"] = project_id
-        if location:
-            os.environ["GOOGLE_CLOUD_LOCATION"] = location
-        os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "True"
+        # Setup Environment for Vertex AI if strictly needed (legacy compat)
+        if not self.api_key and self.project_id:
+            os.environ["GOOGLE_CLOUD_PROJECT"] = self.project_id
+            os.environ["GOOGLE_CLOUD_LOCATION"] = self.location
+            os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "True"
 
     @property
     def client(self):
         if not self._client:
             try:
-                self._client = genai.Client(
-                    vertexai=True,
-                    project=self.project_id,
-                    location=self.location,
-                )
+                if self.api_key:
+                    logger.info("Initializing Client with API Key (Google AI Studio)")
+                    self._client = genai.Client(api_key=self.api_key, vertexai=False)
+                else:
+                    logger.info("Initializing Client with Vertex AI (GCP)")
+                    if not self.project_id:
+                        raise ValueError("Project ID is required for Vertex AI.")
+                    self._client = genai.Client(
+                        vertexai=True,
+                        project=self.project_id,
+                        location=self.location,
+                    )
             except Exception as e:
                 logger.error(f"Failed to initialize GenAI Client: {e}")
                 raise
@@ -81,10 +94,6 @@ class ImageGenerator:
                     if safety_filter_level
                     else None,
                 }
-
-                # If negative prompt is supported by the model (check docs), add it here
-                # Currently for Gemini 3 Pro Preview, it might be part of the prompt
-                # or not fully exposed in the simplified dict config yet.
 
                 response = self.client.models.generate_content(
                     model=self.model_name,

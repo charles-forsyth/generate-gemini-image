@@ -6,7 +6,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    # Auth: API Key OR Vertex AI (Project ID)
+    api_key: Optional[str] = Field(None, description="Google AI Studio API Key")
     project_id: Optional[str] = Field(None, description="Google Cloud Project ID")
+    
     location: str = Field("us-central1", description="Google Cloud Location")
     model_name: str = Field(
         "gemini-3-pro-image-preview", description="Gemini Model Name"
