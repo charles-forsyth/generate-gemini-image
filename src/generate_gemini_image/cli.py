@@ -98,7 +98,10 @@ def main(
         None,
         "--image",
         "-i",
-        help="Reference image(s) for editing/composition. Can be specified multiple times.",
+        help=(
+            "Reference image(s) for editing/composition. "
+            "Can be specified multiple times."
+        ),
     ),
     count: int = typer.Option(
         1,
@@ -144,7 +147,9 @@ def main(
         None, "--location", help="GCP Location (default: us-central1)."
     ),
     model_name: str = typer.Option(
-        None, "--model-name", help="Vertex AI Model (default: gemini-3-pro-image-preview)."
+        None,
+        "--model-name",
+        help="Vertex AI Model (default: gemini-3-pro-image-preview).",
     ),
     aspect_ratio: str = typer.Option(
         None,
@@ -186,7 +191,8 @@ def main(
        $ generate-gemini-image -p "Add a red hat to the cat" -i cat.png
 
     4. High Quality (4K, 16:9):
-       $ generate-gemini-image -p "Space battle fleet" --aspect-ratio "16:9" --image-size "4K"
+       $ generate-gemini-image -p "Space battle fleet" \
+           --aspect-ratio "16:9" --image-size "4K"
 
     5. Piping from Stdin:
        $ echo "A cyberpunk street food vendor" | generate-gemini-image
@@ -229,7 +235,7 @@ def main(
     if not resolved_api_key and not resolved_project_id:
          console.print(
             "[bold red]Authentication missing.[/bold red] Provide either "
-            "--api-key (or API_KEY in env)\n"
+            "--api-key (or API_KEY in env)"
             "OR --project-id (or PROJECT_ID/ADC)."
         )
          raise typer.Exit(code=1)
