@@ -89,34 +89,79 @@ def init():
 def main(
     ctx: typer.Context,
     prompt: Optional[str] = typer.Option(
-        None, "--prompt", "-p", help="The text prompt to generate an image from."
+        None,
+        "--prompt",
+        "-p",
+        help="The text prompt to generate an image from. Required unless piping stdin.",
     ),
     image: Optional[List[Path]] = typer.Option(
-        None, "--image", "-i", help="Reference image(s) for editing/composition."
+        None,
+        "--image",
+        "-i",
+        help="Reference image(s) for editing/composition. Can be specified multiple times.",
     ),
     count: int = typer.Option(
-        1, "--count", "-n", help="Number of images (Nano Banana strict)."
+        1,
+        "--count",
+        "-n",
+        help="Number of images to generate (Nano Banana strict).",
     ),
     styles: Optional[List[str]] = typer.Option(
-        None, "--style", help="Artistic styles (e.g., watercolor)."
+        None,
+        "--style",
+        help=(
+            "Artistic styles to apply. Examples: 'Cyberpunk', 'Watercolor', "
+            "'Oil Painting', 'Photorealistic', 'Anime', 'Sketch', 'Vintage', '3D Render'."
+        ),
     ),
     variations: Optional[List[str]] = typer.Option(
-        None, "--variation", help="Variation types (e.g., lighting)."
+        None,
+        "--variation",
+        help=(
+            "Visual variations to apply. Examples: 'Cinematic Lighting', 'Moody', "
+            "'Golden Hour', 'Minimalist', 'High Contrast', 'Pastel Colors'."
+        ),
     ),
     output_dir: Path = typer.Option(
-        None, "--output-dir", "-o", help="Directory to save output."
+        None,
+        "--output-dir",
+        "-o",
+        help="Directory to save output. Defaults to ~/Pictures/Gemini_Generated.",
     ),
     filename: Optional[str] = typer.Option(
-        None, "--filename", "-f", help="Specific filename for output image."
+        None,
+        "--filename",
+        "-f",
+        help="Specific filename for output image (e.g., 'result.png').",
     ),
-    api_key: str = typer.Option(None, "--api-key", help="Google AI Studio API Key."),
-    project_id: str = typer.Option(None, "--project-id", help="GCP Project ID."),
-    location: str = typer.Option(None, "--location", help="GCP Location."),
-    model_name: str = typer.Option(None, "--model-name", help="Vertex AI Model."),
-    aspect_ratio: str = typer.Option(None, help="Aspect ratio (e.g., 1:1, 16:9)."),
-    image_size: str = typer.Option(None, help="Image resolution (1K, 2K, 4K)."),
-    negative_prompt: str = typer.Option(None, help="Negative prompt."),
-    seed: int = typer.Option(None, help="Random seed."),
+    api_key: str = typer.Option(
+        None, "--api-key", help="Google AI Studio API Key (overrides env)."
+    ),
+    project_id: str = typer.Option(
+        None, "--project-id", help="GCP Project ID (overrides env)."
+    ),
+    location: str = typer.Option(
+        None, "--location", help="GCP Location (default: us-central1)."
+    ),
+    model_name: str = typer.Option(
+        None, "--model-name", help="Vertex AI Model (default: gemini-3-pro-image-preview)."
+    ),
+    aspect_ratio: str = typer.Option(
+        None,
+        help="Aspect ratio. Options: '1:1', '16:9', '9:16', '4:3', '3:4'.",
+    ),
+    image_size: str = typer.Option(
+        None,
+        help="Image resolution. Options: '1K', '2K', '4K'.",
+    ),
+    negative_prompt: str = typer.Option(
+        None,
+        help="Items to exclude from the image (e.g., 'blur, distortion, people').",
+    ),
+    seed: int = typer.Option(
+        None,
+        help="Random seed for reproducible results (if supported by model).",
+    ),
     verbose: bool = typer.Option(
         False, "--verbose", "-v", help="Enable verbose logging."
     ),
@@ -124,16 +169,27 @@ def main(
     """
     Generate images using Gemini 3 Pro (Nano Banana Pro).
     
-    Examples:
+    This tool allows you to create high-quality images from text prompts,
+    edit existing images, and combine multiple images using Google's generative AI.
+
+    EXAMPLES:
     
-    # 1. Basic Generation
-    $ generate-gemini-image -p "A cyberpunk cat"
+    1. Basic Generation:
+       $ generate-gemini-image -p "A majestic lion on Mars"
 
-    # 2. Image Editing (Inpainting/Modification)
-    $ generate-gemini-image -p "Add sunglasses" -i cat.png
+    2. Styles & Variations:
+       $ generate-gemini-image -p "A city street" \
+           --style "Cyberpunk" --style "Neon" \
+           --variation "Rainy" --variation "Cinematic Lighting"
 
-    # 3. Specify Output Filename
-    $ generate-gemini-image -p "Logo" -f "my_logo.png"
+    3. Image Editing (Inpainting/Modification):
+       $ generate-gemini-image -p "Add a red hat to the cat" -i cat.png
+
+    4. High Quality (4K, 16:9):
+       $ generate-gemini-image -p "Space battle fleet" --aspect-ratio "16:9" --image-size "4K"
+
+    5. Piping from Stdin:
+       $ echo "A cyberpunk street food vendor" | generate-gemini-image
     """
     # If a subcommand (like 'init') is invoked, just return and let it run.
     if ctx.invoked_subcommand is not None:

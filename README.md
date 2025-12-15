@@ -58,32 +58,56 @@ Generate a single image with default settings.
 generate-gemini-image -p "A futuristic city on Mars"
 ```
 
-### 2. Image Editing & Inpainting
-Modify an existing image by providing it as context.
+### 2. Styles and Variations
+Apply artistic styles and variations to your prompt.
 ```bash
-generate-gemini-image -p "Add a red hat to the cat" -i cat.png
+generate-gemini-image -p "A portrait of a wizard" \
+    --style "Oil Painting" --style "Classical" \
+    --variation "Dramatic Lighting" --variation "Moody"
+```
+*   **Styles**: Cyberpunk, Watercolor, Sketch, Anime, 3D Render, Vintage, Minimalist...
+*   **Variations**: Cinematic Lighting, Golden Hour, High Contrast, Pastel Colors, Dark Fantasy...
+
+### 3. Image Editing (Inpainting)
+Modify an existing image by providing it as context. The model will interpret your prompt as an edit instruction.
+```bash
+generate-gemini-image -p "Add sunglasses to the cat" -i cat.png
 ```
 
-### 3. Multi-Image Composition
+### 4. Multi-Image Composition
 Combine elements from multiple images.
 ```bash
 generate-gemini-image -p "Combine the style of image 1 with the subject of image 2" \
     -i style_ref.png -i subject_ref.png
 ```
 
-### 4. Piping from Stdin
+### 5. High Quality (4K)
+Generate a high-resolution, wide-format image.
+```bash
+generate-gemini-image -p "Space battle fleet" \
+    --aspect-ratio "16:9" \
+    --image-size "4K"
+```
+
+### 6. Strict Count (Nano Banana)
+Generate exactly `N` images (by running the request multiple times if needed).
+```bash
+generate-gemini-image -p "A cute robot" --count 4
+```
+
+### 7. Piping from Stdin
 Great for chaining commands or reading from files.
 ```bash
 echo "A cyberpunk street food vendor" | generate-gemini-image
 ```
-
-### 5. High Resolution & Styles
-Generate a 4K, 16:9 cinematic image with specific styles.
 ```bash
-generate-gemini-image -p "Space battle fleet" \
-    --aspect-ratio "16:9" \
-    --image-size "4K" \
-    --style "cinematic" --variation "dramatic"
+cat prompt.txt | generate-gemini-image
+```
+
+### 8. Specific Filename
+Save the output to a specific file instead of auto-generating a name.
+```bash
+generate-gemini-image -p "Logo" --filename "company_logo.png"
 ```
 
 ## Configuration Reference (`.env`)
