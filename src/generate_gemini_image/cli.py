@@ -11,11 +11,7 @@ from rich.logging import RichHandler
 from .config import settings
 from .core import ImageGenerator
 
-# Enable -h for help
-app = typer.Typer(
-    help="Modernized Gemini Image Generation CLI",
-    context_settings={"help_option_names": ["-h", "--help"]},
-)
+app = typer.Typer(help="Modernized Gemini Image Generation CLI")
 console = Console()
 
 # Configure logging
@@ -92,14 +88,17 @@ def main(
     prompt: Optional[str] = typer.Option(
         None, "--prompt", "-p", help="The text prompt to generate an image from."
     ),
+    image: Optional[List[Path]] = typer.Option(
+        None, "--image", "-i", help="Reference image(s) for editing/composition."
+    ),
     count: int = typer.Option(
         1, "--count", "-n", help="Number of images (Nano Banana strict)."
     ),
     styles: Optional[List[str]] = typer.Option(
-        None, "--style", help="Artistic styles (e.g., watercolor, photorealistic)."
+        None, "--style", help="Artistic styles (e.g., watercolor)."
     ),
     variations: Optional[List[str]] = typer.Option(
-        None, "--variation", help="Variation types (e.g., lighting, mood)."
+        None, "--variation", help="Variation types (e.g., lighting)."
     ),
     output_dir: Path = typer.Option(
         None, "--output-dir", "-o", help="Directory to save output."
@@ -124,14 +123,11 @@ def main(
     # 1. Basic Generation
     $ generate-gemini-image -p "A cyberpunk cat"
 
-    # 2. Piping from stdin
-    $ echo "A beautiful mountain sunset" | generate-gemini-image
+    # 2. Image Editing (Inpainting/Modification)
+    $ generate-gemini-image -p "Add sunglasses to the cat" -i cat.png
 
-    # 3. Multiple Images with Styles
-    $ generate-gemini-image -p "A forest" -n 4 --style "watercolor" --style "vintage"
-
-    # 4. High Resolution & Wide Aspect Ratio
-    $ generate-gemini-image -p "Space battle" --aspect-ratio "16:9" --image-size "4K"
+    # 3. Multi-Image Composition
+    $ generate-gemini-image -p "Combine these styles" -i style1.png -i style2.png
     """
     # If a subcommand (like 'init') is invoked, just return and let it run.
     if ctx.invoked_subcommand is not None:
@@ -171,7 +167,8 @@ def main(
     if not resolved_api_key and not resolved_project_id:
          console.print(
             "[bold red]Authentication missing.[/bold red] Provide either "
-            "--api-key (or API_KEY in env)\n"
+            "--api-key (or API_KEY in env)"
+            "\n"
             "OR --project-id (or PROJECT_ID/ADC)."
         )
          raise typer.Exit(code=1)
@@ -203,6 +200,7 @@ def main(
     try:
         files = generator.generate(
             prompt=full_prompt,
+            reference_images=image,
             count=count,
             aspect_ratio=resolved_aspect_ratio,
             image_size=resolved_image_size,

@@ -1,9 +1,10 @@
 import logging
 import os
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from google import genai
+from PIL import Image
 
 from .utils import ensure_directory, sanitize_filename
 
@@ -67,6 +68,7 @@ class ImageGenerator:
     def generate(
         self,
         prompt: str,
+        reference_images: Optional[List[Path]] = None,
         count: int = 1,
         aspect_ratio: str = "1:1",
         image_size: str = "1K",
@@ -83,12 +85,26 @@ class ImageGenerator:
             f"Model: {self.model_name} | Size: {image_size} | Ratio: {aspect_ratio}"
         )
 
+        # Prepare Content (Text + Images)
+        contents: List[Union[str, Image.Image]] = [prompt]
+        
+        if reference_images:
+            logger.info(f"Using {len(reference_images)} reference image(s).")
+            for img_path in reference_images:
+                if not img_path.exists():
+                    logger.warning(f"Reference image not found: {img_path}")
+                    continue
+                try:
+                    img = Image.open(img_path)
+                    contents.append(img)
+                except Exception as e:
+                    logger.error(f"Failed to load image {img_path}: {e}")
+
         # Ensure output directory exists
         ensure_directory(output_dir)
 
         saved_files = []
         
-        # Explicitly resolve the threshold here
         valid_threshold = self._resolve_safety_threshold(safety_filter_level)
         logger.debug(
             f"Resolved Safety Threshold: {safety_filter_level} -> {valid_threshold}"
@@ -126,7 +142,7 @@ class ImageGenerator:
 
                 response = self.client.models.generate_content(
                     model=self.model_name,
-                    contents=[prompt],
+                    contents=contents,
                     config=config,
                 )
 
