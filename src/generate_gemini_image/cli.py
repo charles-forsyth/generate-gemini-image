@@ -11,7 +11,10 @@ from rich.logging import RichHandler
 from .config import settings
 from .core import ImageGenerator
 
-app = typer.Typer(help="Modernized Gemini Image Generation CLI")
+app = typer.Typer(
+    help="Modernized Gemini Image Generation CLI",
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
 console = Console()
 
 # Configure logging
