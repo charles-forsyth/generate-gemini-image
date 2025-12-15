@@ -78,6 +78,7 @@ class ImageGenerator:
         add_watermark: bool = True,
         seed: Optional[int] = None,
         output_dir: Path = Path("."),
+        filename: Optional[str] = None,
     ) -> List[Path]:
 
         # 1. Handle Negative Prompt (Append logic)
@@ -172,16 +173,29 @@ class ImageGenerator:
                     ):
                         img = part.as_image()
 
-                        # Use original prompt for filename
-                        filename = sanitize_filename(prompt)
+                        # Determine Filename
+                        if filename:
+                            current_filename = filename
+                        else:
+                            current_filename = sanitize_filename(prompt)
+
                         # Uniqueify if multiple counts or parts
                         if count > 1 or len(response.parts) > 1:
-                            name_stem = Path(filename).stem
-                            suffix = Path(filename).suffix
-                            s_img = sanitize_filename("img")[-6:]
-                            filename = f"{name_stem}_{i}_{s_img}{suffix}"
+                            name_stem = Path(current_filename).stem
+                            suffix = Path(current_filename).suffix
+                            # Ensure suffix exists if user provided filename without it
+                            if not suffix and filename:
+                                suffix = ".png" # Default to png
+                            
+                            # Add unique index
+                            if filename:
+                                current_filename = f"{name_stem}_{i}{suffix}"
+                            else:
+                                # Legacy auto-naming format
+                                s_img = sanitize_filename("img")[-6:]
+                                current_filename = f"{name_stem}_{i}_{s_img}{suffix}"
 
-                        output_path = output_dir / filename
+                        output_path = output_dir / current_filename
                         img.save(output_path)
                         saved_files.append(output_path)
                         logger.info(f"Saved: {output_path}")

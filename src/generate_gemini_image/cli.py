@@ -106,6 +106,9 @@ def main(
     output_dir: Path = typer.Option(
         None, "--output-dir", "-o", help="Directory to save output."
     ),
+    filename: Optional[str] = typer.Option(
+        None, "--filename", "-f", help="Specific filename for output image."
+    ),
     api_key: str = typer.Option(None, "--api-key", help="Google AI Studio API Key."),
     project_id: str = typer.Option(None, "--project-id", help="GCP Project ID."),
     location: str = typer.Option(None, "--location", help="GCP Location."),
@@ -127,10 +130,10 @@ def main(
     $ generate-gemini-image -p "A cyberpunk cat"
 
     # 2. Image Editing (Inpainting/Modification)
-    $ generate-gemini-image -p "Add sunglasses to the cat" -i cat.png
+    $ generate-gemini-image -p "Add sunglasses" -i cat.png
 
-    # 3. Multi-Image Composition
-    $ generate-gemini-image -p "Combine these styles" -i style1.png -i style2.png
+    # 3. Specify Output Filename
+    $ generate-gemini-image -p "Logo" -f "my_logo.png"
     """
     # If a subcommand (like 'init') is invoked, just return and let it run.
     if ctx.invoked_subcommand is not None:
@@ -170,8 +173,7 @@ def main(
     if not resolved_api_key and not resolved_project_id:
          console.print(
             "[bold red]Authentication missing.[/bold red] Provide either "
-            "--api-key (or API_KEY in env)"
-            "\n"
+            "--api-key (or API_KEY in env)\n"
             "OR --project-id (or PROJECT_ID/ADC)."
         )
          raise typer.Exit(code=1)
@@ -213,6 +215,7 @@ def main(
             add_watermark=settings.add_watermark,
             seed=seed,
             output_dir=resolved_output_dir,
+            filename=filename,
         )
         console.print(
             f"[bold green]Successfully generated {len(files)} images.[/bold green]"
