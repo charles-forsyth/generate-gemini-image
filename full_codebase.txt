@@ -1,0 +1,740 @@
+=== FILE: pyproject.toml ===
+[project]
+name = "generate-gemini-image"
+version = "0.1.11"
+description = "Modernized Gemini Image Generation CLI"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic-settings>=2.6.1",
+    "python-dotenv>=1.0.1",
+    "rich>=13.9.4",
+    "typer>=0.15.1",
+    "pydantic>=2.0.0",
+    "google-genai>=1.0.0",
+    "pillow>=12.0.0",
+]
+
+[project.scripts]
+generate-gemini-image = "generate_gemini_image.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B"]
+ignore = ["B008"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/generate_gemini_image"]
+
+
+
+=== FILE: README.md ===
+# Modernized Gemini Image Generation CLI
+
+A robust, secure, and distribution-ready CLI tool for generating and editing images using Google's **Gemini 3 Pro** (aka Nano Banana Pro) models.
+
+## Features
+
+*   **Gemini 3 Pro**: Uses the latest `gemini-3-pro-image-preview` model via `google-genai` SDK.
+*   **Image Editing**: Modify existing images or create composites using reference images (`--image`).
+*   **Dual Auth**: Support for both **API Key** (Google AI Studio) and **Vertex AI** (GCP).
+*   **Flexible CLI**: Support for named arguments (`--prompt`), piping from stdin (`|`), and rich output.
+*   **Nano Banana Enhancements**: Strict count adherence, style/variation prompt augmentation.
+*   **Secure Configuration**: Uses `pydantic-settings` to load credentials from environment variables (`.env` support).
+*   **Reproducible**: Managed with `uv` and `pyproject.toml`.
+
+## Installation
+
+### Using `uv` (Recommended)
+
+You can install this tool directly from the repository:
+
+```bash
+uv tool install git+https://github.com/charles-forsyth/generate-gemini-image.git
+```
+
+To update later:
+
+```bash
+uv tool update generate-gemini-image
+```
+
+### Initial Setup
+
+After installation, run the initialization command to create your secure configuration file:
+
+```bash
+generate-gemini-image init
+```
+
+This will create `~/.config/generate-gemini-image/.env`. **Edit this file to set your authentication:**
+
+**Option A: API Key (Simpler)**
+Get a key from [Google AI Studio](https://aistudio.google.com/).
+```env
+API_KEY=your_api_key_here
+```
+
+**Option B: Vertex AI (Enterprise)**
+Use your Google Cloud Project.
+```env
+PROJECT_ID=your_gcp_project_id
+```
+
+## Usage Examples
+
+### 1. Basic Generation
+Generate a single image with default settings.
+```bash
+generate-gemini-image -p "A futuristic city on Mars"
+```
+
+### 2. Styles and Variations
+Apply artistic styles and variations to your prompt.
+```bash
+generate-gemini-image -p "A portrait of a wizard" \
+    --style "Oil Painting" --style "Classical" \
+    --variation "Dramatic Lighting" --variation "Moody"
+```
+*   **Styles**: Cyberpunk, Watercolor, Sketch, Anime, 3D Render, Vintage, Minimalist...
+*   **Variations**: Cinematic Lighting, Golden Hour, High Contrast, Pastel Colors, Dark Fantasy...
+
+### 3. Image Editing (Inpainting)
+Modify an existing image by providing it as context. The model will interpret your prompt as an edit instruction.
+```bash
+generate-gemini-image -p "Add sunglasses to the cat" -i cat.png
+```
+
+### 4. Multi-Image Composition
+Combine elements from multiple images.
+```bash
+generate-gemini-image -p "Combine the style of image 1 with the subject of image 2" \
+    -i style_ref.png -i subject_ref.png
+```
+
+### 5. High Quality (4K)
+Generate a high-resolution, wide-format image.
+```bash
+generate-gemini-image -p "Space battle fleet" \
+    --aspect-ratio "16:9" \
+    --image-size "4K"
+```
+
+### 6. Strict Count (Nano Banana)
+Generate exactly `N` images (by running the request multiple times if needed).
+```bash
+generate-gemini-image -p "A cute robot" --count 4
+```
+
+### 7. Piping from Stdin
+Great for chaining commands or reading from files.
+```bash
+echo "A cyberpunk street food vendor" | generate-gemini-image
+```
+```bash
+cat prompt.txt | generate-gemini-image
+```
+
+### 8. Specific Filename
+Save the output to a specific file instead of auto-generating a name.
+```bash
+generate-gemini-image -p "Logo" --filename "company_logo.png"
+```
+
+## Configuration Reference (`.env`)
+
+| Setting | Description | Default |
+| :--- | :--- | :--- |
+| `API_KEY` | Google AI Studio Key | None |
+| `PROJECT_ID` | GCP Project ID | None |
+| `MODEL_NAME` | Model ID | `gemini-3-pro-image-preview` |
+| `OUTPUT_DIR` | Output folder | `~/Pictures/Gemini_Generated` |
+| `ASPECT_RATIO` | Default shape | `1:1` |
+| `IMAGE_SIZE` | Resolution (`1K`, `2K`, `4K`) | `1K` |
+| `SAFETY_FILTER_LEVEL` | Content filtering (`BLOCK_NONE`, `BLOCK_ONLY_HIGH`) | `BLOCK_ONLY_HIGH` |
+
+## License
+
+Private / Internal Use.
+
+
+=== FILE: src/generate_gemini_image/config.py ===
+from pathlib import Path
+from typing import Optional
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    # Auth: API Key OR Vertex AI (Project ID)
+    api_key: Optional[str] = Field(None, description="Google AI Studio API Key")
+    project_id: Optional[str] = Field(None, description="Google Cloud Project ID")
+    
+    location: str = Field("us-central1", description="Google Cloud Location")
+    model_name: str = Field(
+        "gemini-3-pro-image-preview", description="Gemini Model Name"
+    )
+    output_dir: Path = Field(Path("."), description="Output directory for images")
+    
+    # Image Generation Defaults
+    aspect_ratio: str = Field("1:1", description="Default aspect ratio")
+    image_size: str = Field("1K", description="Resolution (1K, 2K, 4K)")
+    safety_filter_level: str = Field(
+        "BLOCK_ONLY_HIGH", description="Safety filter level"
+    )
+    person_generation: str = Field("allow_all", description="Person generation setting")
+    add_watermark: bool = Field(True, description="Add invisible watermark")
+
+    model_config = SettingsConfigDict(
+        env_file=[
+            str(Path.home() / ".config" / "generate-gemini-image" / ".env"),
+            ".env"
+        ],
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
+
+settings = Settings()
+
+=== FILE: src/generate_gemini_image/utils.py ===
+import datetime
+import re
+from pathlib import Path
+
+
+def sanitize_filename(prompt: str, extension: str = "png") -> str:
+    """Sanitizes a prompt to create a safe filename."""
+    # Remove non-alphanumeric characters except spaces and hyphens
+    sanitized = re.sub(r"[^\w\s-]", "", prompt).strip()
+    # Replace spaces and hyphens with underscores
+    sanitized = re.sub(r"[-\s]+", "_", sanitized)
+    # Truncate
+    sanitized = sanitized[:50]
+    # Add timestamp
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    return f"{sanitized}_{timestamp}.{extension}"
+
+def ensure_directory(path: Path):
+    """Ensures a directory exists."""
+    path.mkdir(parents=True, exist_ok=True)
+
+
+=== FILE: src/generate_gemini_image/core.py ===
+import logging
+import os
+from pathlib import Path
+from typing import List, Optional, Union
+
+from google import genai
+from PIL import Image
+
+from .utils import ensure_directory, sanitize_filename
+
+logger = logging.getLogger(__name__)
+
+
+class ImageGenerator:
+    def __init__(
+        self,
+        model_name: str,
+        api_key: Optional[str] = None,
+        project_id: Optional[str] = None,
+        location: str = "us-central1"
+    ):
+        self.model_name = model_name
+        self.api_key = api_key
+        self.project_id = project_id
+        self.location = location
+        self._client = None
+
+        # Setup Environment for Vertex AI if strictly needed (legacy compat)
+        if not self.api_key and self.project_id:
+            os.environ["GOOGLE_CLOUD_PROJECT"] = self.project_id
+            os.environ["GOOGLE_CLOUD_LOCATION"] = self.location
+            os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "True"
+
+    @property
+    def client(self):
+        if not self._client:
+            try:
+                if self.api_key:
+                    logger.info("Initializing Client with API Key (Google AI Studio)")
+                    self._client = genai.Client(api_key=self.api_key, vertexai=False)
+                else:
+                    logger.info("Initializing Client with Vertex AI (GCP)")
+                    if not self.project_id:
+                        raise ValueError("Project ID is required for Vertex AI.")
+                    self._client = genai.Client(
+                        vertexai=True,
+                        project=self.project_id,
+                        location=self.location,
+                    )
+            except Exception as e:
+                logger.error(f"Failed to initialize GenAI Client: {e}")
+                raise
+        return self._client
+
+    def _resolve_safety_threshold(self, level: str) -> str:
+        """
+        Maps user-friendly or legacy safety levels to valid Vertex AI/Gemini enums.
+        """
+        level = level.upper()
+        mapping = {
+            "BLOCK_SOME": "BLOCK_ONLY_HIGH",  # Legacy/Default fix
+            "BLOCK_MOST": "BLOCK_LOW_AND_ABOVE",
+            "BLOCK_FEW": "BLOCK_ONLY_HIGH",
+            "BLOCK_NONE": "BLOCK_NONE",
+        }
+        return mapping.get(level, level)
+
+    def generate(
+        self,
+        prompt: str,
+        reference_images: Optional[List[Path]] = None,
+        count: int = 1,
+        aspect_ratio: str = "1:1",
+        image_size: str = "1K",
+        negative_prompt: Optional[str] = None,
+        person_generation: str = "allow_all",
+        safety_filter_level: str = "BLOCK_ONLY_HIGH",
+        add_watermark: bool = True,
+        seed: Optional[int] = None,
+        output_dir: Path = Path("."),
+        filename: Optional[str] = None,
+    ) -> List[Path]:
+
+        # 1. Handle Negative Prompt (Append logic)
+        final_prompt = prompt
+        if negative_prompt:
+            final_prompt += f" \n(Exclude: {negative_prompt})"
+            logger.info(f"Appended negative prompt: {negative_prompt}")
+
+        # 2. Handle Person Generation (Prompt guidance)
+        if person_generation == "dont_allow":
+            final_prompt += " \n(Do not include people in this image.)"
+        elif person_generation == "allow_adult":
+            final_prompt += " \n(If people are included, they must be adults.)"
+
+        logger.info(f"Generating image with prompt: '{final_prompt}'")
+        logger.info(
+            f"Model: {self.model_name} | Size: {image_size} | Ratio: {aspect_ratio}"
+        )
+
+        # Prepare Content (Text + Images)
+        contents: List[Union[str, Image.Image]] = [final_prompt]
+        
+        if reference_images:
+            logger.info(f"Using {len(reference_images)} reference image(s).")
+            for img_path in reference_images:
+                if not img_path.exists():
+                    logger.warning(f"Reference image not found: {img_path}")
+                    continue
+                try:
+                    img = Image.open(img_path)
+                    contents.append(img)
+                except Exception as e:
+                    logger.error(f"Failed to load image {img_path}: {e}")
+
+        # Ensure output directory exists
+        ensure_directory(output_dir)
+
+        saved_files = []
+        
+        valid_threshold = self._resolve_safety_threshold(safety_filter_level)
+        logger.debug(
+            f"Resolved Safety Threshold: {safety_filter_level} -> {valid_threshold}"
+        )
+
+        # Gemini 3 Pro generates one image per request typically
+        for i in range(count):
+            try:
+                # Use dict for config to avoid import issues with specific types
+                config = {
+                    "response_modalities": ["TEXT", "IMAGE"],
+                    "image_config": {
+                        "aspect_ratio": aspect_ratio,
+                        "image_size": image_size,
+                    },
+                    "safety_settings": [
+                        {
+                            "category": "HARM_CATEGORY_HARASSMENT",
+                            "threshold": valid_threshold,
+                        },
+                        {
+                            "category": "HARM_CATEGORY_HATE_SPEECH",
+                            "threshold": valid_threshold,
+                        },
+                        {
+                            "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                            "threshold": valid_threshold,
+                        },
+                         {
+                            "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                            "threshold": valid_threshold,
+                        }
+                    ],
+                }
+                
+                # Seed is not yet injected into config
+                if seed is not None:
+                    pass 
+
+                response = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=contents,
+                    config=config,
+                )
+
+                # Process Response
+                for part in response.parts:
+                    if part.text:
+                        logger.debug(f"Thinking/Text: {part.text[:200]}...")
+
+                    if part.inline_data or (
+                        hasattr(part, "as_image") and part.as_image()
+                    ):
+                        img = part.as_image()
+
+                        # Determine Filename
+                        if filename:
+                            current_filename = filename
+                        else:
+                            current_filename = sanitize_filename(prompt)
+
+                        # Uniqueify if multiple counts or parts
+                        if count > 1 or len(response.parts) > 1:
+                            name_stem = Path(current_filename).stem
+                            suffix = Path(current_filename).suffix
+                            # Ensure suffix exists if user provided filename without it
+                            if not suffix and filename:
+                                suffix = ".png" # Default to png
+                            
+                            # Add unique index
+                            if filename:
+                                current_filename = f"{name_stem}_{i}{suffix}"
+                            else:
+                                # Legacy auto-naming format
+                                s_img = sanitize_filename("img")[-6:]
+                                current_filename = f"{name_stem}_{i}_{s_img}{suffix}"
+
+                        output_path = output_dir / current_filename
+                        img.save(output_path)
+                        saved_files.append(output_path)
+                        logger.info(f"Saved: {output_path}")
+
+            except Exception as e:
+                logger.error(f"Image generation failed for iteration {i+1}: {e}")
+                # We continue to try other iterations if one fails, or could raise
+                if i == count - 1 and not saved_files:
+                    raise
+
+        return saved_files
+
+
+=== FILE: src/generate_gemini_image/cli.py ===
+import logging
+import sys
+from pathlib import Path
+from typing import List, Optional
+
+import google.auth
+import typer
+from rich.console import Console
+from rich.logging import RichHandler
+
+from .config import settings
+from .core import ImageGenerator
+
+app = typer.Typer(
+    help="Modernized Gemini Image Generation CLI",
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
+console = Console()
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(message)s",
+    datefmt="[%X]",
+    handlers=[RichHandler(rich_tracebacks=True)],
+)
+logger = logging.getLogger("generate-gemini-image")
+
+
+def get_project_id(project_id_arg: Optional[str]) -> Optional[str]:
+    if project_id_arg:
+        return project_id_arg
+    if settings.project_id:
+        return settings.project_id
+
+    try:
+        _, project = google.auth.default()
+        if project:
+            return project
+    except Exception:
+        pass
+    return None
+
+
+@app.command()
+def init():
+    """
+    Initialize the application configuration.
+    Creates a secure .env file in ~/.config/generate-gemini-image/
+    """
+    config_dir = Path.home() / ".config" / "generate-gemini-image"
+    env_file = config_dir / ".env"
+
+    if env_file.exists():
+        console.print(f"[yellow]Configuration already exists at {env_file}[/yellow]")
+        return
+
+    try:
+        config_dir.mkdir(parents=True, exist_ok=True)
+        
+        default_config = (
+            "# Secure Configuration for Generate Gemini Image\n"
+            "# Permissions set to 600 (User Read/Write Only)\n\n"
+            "# AUTHENTICATION (Choose One)\n"
+            "API_KEY=\n"
+            "PROJECT_ID=\n\n"
+            "LOCATION=us-central1\n"
+            "MODEL_NAME=gemini-3-pro-image-preview\n"
+            f"OUTPUT_DIR={Path.home() / 'Pictures' / 'Gemini_Generated'}\n"
+            "ASPECT_RATIO=1:1\n"
+            "IMAGE_SIZE=1K\n"
+            "SAFETY_FILTER_LEVEL=BLOCK_ONLY_HIGH\n"
+            "PERSON_GENERATION=allow_all\n"
+            "ADD_WATERMARK=true\n"
+        )
+        
+        env_file.write_text(default_config)
+        env_file.chmod(0o600)
+        
+        console.print(f"[green]Initialized configuration at {env_file}[/green]")
+        console.print("Please edit this file to add your API_KEY or PROJECT_ID.")
+        
+    except Exception as e:
+        console.print(f"[red]Failed to initialize configuration: {e}[/red]")
+        raise typer.Exit(code=1) from e
+
+
+@app.callback(invoke_without_command=True)
+def main(
+    ctx: typer.Context,
+    prompt: Optional[str] = typer.Option(
+        None,
+        "--prompt",
+        "-p",
+        help="The text prompt to generate an image from. Required unless piping stdin.",
+    ),
+    image: Optional[List[Path]] = typer.Option(
+        None,
+        "--image",
+        "-i",
+        help=(
+            "Reference image(s) for editing/composition. "
+            "Can be specified multiple times."
+        ),
+    ),
+    count: int = typer.Option(
+        1,
+        "--count",
+        "-n",
+        help="Number of images to generate (Nano Banana strict).",
+    ),
+    styles: Optional[List[str]] = typer.Option(
+        None,
+        "--style",
+        help=(
+            "Artistic styles to apply. Examples: 'Cyberpunk', 'Watercolor', "
+            "'Oil Painting', 'Photorealistic', 'Anime', 'Sketch', 'Vintage'."
+        ),
+    ),
+    variations: Optional[List[str]] = typer.Option(
+        None,
+        "--variation",
+        help=(
+            "Visual variations to apply. Examples: 'Cinematic Lighting', 'Moody', "
+            "'Golden Hour', 'Minimalist', 'High Contrast', 'Pastel Colors'."
+        ),
+    ),
+    output_dir: Path = typer.Option(
+        None,
+        "--output-dir",
+        "-o",
+        help="Directory to save output. Defaults to ~/Pictures/Gemini_Generated.",
+    ),
+    filename: Optional[str] = typer.Option(
+        None,
+        "--filename",
+        "-f",
+        help="Specific filename for output image (e.g., 'result.png').",
+    ),
+    api_key: str = typer.Option(
+        None, "--api-key", help="Google AI Studio API Key (overrides env)."
+    ),
+    project_id: str = typer.Option(
+        None, "--project-id", help="GCP Project ID (overrides env)."
+    ),
+    location: str = typer.Option(
+        None, "--location", help="GCP Location (default: us-central1)."
+    ),
+    model_name: str = typer.Option(
+        None,
+        "--model-name",
+        help="Vertex AI Model (default: gemini-3-pro-image-preview).",
+    ),
+    aspect_ratio: str = typer.Option(
+        None,
+        help="Aspect ratio. Options: '1:1', '16:9', '9:16', '4:3', '3:4'.",
+    ),
+    image_size: str = typer.Option(
+        None,
+        help="Image resolution. Options: '1K', '2K', '4K'.",
+    ),
+    negative_prompt: str = typer.Option(
+        None,
+        help="Items to exclude from the image (e.g., 'blur, distortion, people').",
+    ),
+    seed: int = typer.Option(
+        None,
+        help="Random seed for reproducible results (if supported by model).",
+    ),
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v", help="Enable verbose logging."
+    ),
+):
+    """
+    Generate images using Gemini 3 Pro (Nano Banana Pro).
+    
+    This tool allows you to create high-quality images from text prompts,
+    edit existing images, and combine multiple images using Google's generative AI.
+
+    EXAMPLES:
+    
+    1. Basic Generation:
+       $ generate-gemini-image -p "A majestic lion on Mars"
+
+    2. Styles & Variations:
+       $ generate-gemini-image -p "A city street" \
+           --style "Cyberpunk" --style "Neon" \
+           --variation "Rainy" --variation "Cinematic Lighting"
+
+    3. Image Editing (Inpainting/Modification):
+       $ generate-gemini-image -p "Add a red hat to the cat" -i cat.png
+
+    4. High Quality (4K, 16:9):
+       $ generate-gemini-image -p "Space battle fleet" \
+           --aspect-ratio "16:9" --image-size "4K"
+
+    5. Piping from Stdin:
+       $ echo "A cyberpunk street food vendor" | generate-gemini-image
+    """
+    # If a subcommand (like 'init') is invoked, just return and let it run.
+    if ctx.invoked_subcommand is not None:
+        return
+
+    # Handle Stdin for Prompt
+    if not prompt:
+        # Check if there is data in stdin (and it's not a TTY)
+        if not sys.stdin.isatty():
+            prompt = sys.stdin.read().strip()
+            if prompt:
+                logger.info("Reading prompt from stdin...")
+
+    # If still no prompt, show error
+    if not prompt:
+        console.print("[yellow]No command or prompt provided.[/yellow]")
+        console.print(
+            "Use [bold]--prompt[/bold] or pipe text via stdin.\n"
+            "Run [bold]generate-gemini-image --help[/bold] for usage."
+        )
+        raise typer.Exit(code=0)
+
+    # --- Generation Logic ---
+    if verbose:
+        logger.setLevel(logging.DEBUG)
+
+    # Resolve Configuration
+    resolved_api_key = api_key or settings.api_key
+    resolved_project_id = get_project_id(project_id)
+    resolved_location = location or settings.location
+    resolved_model_name = model_name or settings.model_name
+    resolved_output_dir = output_dir or settings.output_dir
+    resolved_aspect_ratio = aspect_ratio or settings.aspect_ratio
+    resolved_image_size = image_size or settings.image_size
+    
+    # Validate Auth
+    if not resolved_api_key and not resolved_project_id:
+         console.print(
+            "[bold red]Authentication missing.[/bold red] Provide either "
+            "--api-key (or API_KEY in env)\n"
+            "OR --project-id (or PROJECT_ID/ADC)."
+        )
+         raise typer.Exit(code=1)
+
+    # "Nano Banana" Prompt Augmentation
+    full_prompt = prompt
+    if styles:
+        style_text = ", ".join(styles)
+        full_prompt += f", in the style of {style_text}"
+    if variations:
+        var_text = ", ".join(variations)
+        full_prompt += f", with variations in {var_text}"
+
+    if resolved_api_key:
+        logger.info("Using Authentication: API Key")
+    else:
+        logger.info(f"Using Authentication: Vertex AI (Project: {resolved_project_id})")
+        
+    logger.info(f"Model: {resolved_model_name}")
+    logger.info(f"Full Prompt: {full_prompt}")
+
+    generator = ImageGenerator(
+        model_name=resolved_model_name,
+        api_key=resolved_api_key,
+        project_id=resolved_project_id,
+        location=resolved_location,
+    )
+
+    try:
+        files = generator.generate(
+            prompt=full_prompt,
+            reference_images=image,
+            count=count,
+            aspect_ratio=resolved_aspect_ratio,
+            image_size=resolved_image_size,
+            negative_prompt=negative_prompt,
+            person_generation=settings.person_generation,
+            safety_filter_level=settings.safety_filter_level,
+            add_watermark=settings.add_watermark,
+            seed=seed,
+            output_dir=resolved_output_dir,
+            filename=filename,
+        )
+        console.print(
+            f"[bold green]Successfully generated {len(files)} images.[/bold green]"
+        )
+        for f in files:
+            console.print(f"  - {f}")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1) from e
+
+
+if __name__ == "__main__":
+    app()

@@ -1,0 +1,16 @@
+.
+├── project_tree.txt
+├── pyproject.toml
+├── README.md
+├── run_tests.sh
+├── src
+│   └── generate_gemini_image
+│       ├── cli.py
+│       ├── config.py
+│       ├── core.py
+│       └── utils.py
+├── tests
+│   └── test_core.py
+└── uv.lock
+
+3 directories, 10 files

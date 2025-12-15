@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import List, Optional
 
 import google.auth
+import google.auth.exceptions
 import typer
 from rich.console import Console
 from rich.logging import RichHandler
@@ -37,7 +38,10 @@ def get_project_id(project_id_arg: Optional[str]) -> Optional[str]:
         _, project = google.auth.default()
         if project:
             return project
-    except Exception:
+    except google.auth.exceptions.DefaultCredentialsError:
+        pass
+    except Exception as e:
+        logger.debug(f"Unexpected error during auth discovery: {e}")
         pass
     return None
 
@@ -108,6 +112,7 @@ def main(
         "--count",
         "-n",
         help="Number of images to generate (Nano Banana strict).",
+        min=1,  # Ensure positive integer
     ),
     styles: Optional[List[str]] = typer.Option(
         None,
@@ -235,8 +240,8 @@ def main(
     if not resolved_api_key and not resolved_project_id:
          console.print(
             "[bold red]Authentication missing.[/bold red] Provide either "
-            "--api-key (or API_KEY in env)\n"
-            "OR --project-id (or PROJECT_ID/ADC)."
+            "--api-key (or API_KEY in env)"
+            "\nOR --project-id (or PROJECT_ID/ADC)."
         )
          raise typer.Exit(code=1)
 

@@ -136,7 +136,7 @@ wheels = [
 
 [[package]]
 name = "generate-gemini-image"
-version = "0.1.11"
+version = "0.1.12"
 source = { editable = "." }
 dependencies = [
     { name = "google-genai" },
