@@ -15,6 +15,7 @@ def sanitize_filename(prompt: str, extension: str = "png") -> str:
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     return f"{sanitized}_{timestamp}.{extension}"
 
+
 def ensure_directory(path: Path):
     """Ensures a directory exists."""
     path.mkdir(parents=True, exist_ok=True)

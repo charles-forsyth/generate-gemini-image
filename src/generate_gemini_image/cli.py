@@ -1,30 +1,18 @@
+import argparse
 import logging
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 import google.auth
 import google.auth.exceptions
-import typer
 from rich.console import Console
 from rich.logging import RichHandler
 
 from .config import settings
 from .core import ImageGenerator
 
-app = typer.Typer(
-    help="Modernized Gemini Image Generation CLI",
-    context_settings={"help_option_names": ["-h", "--help"]},
-)
 console = Console()
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(message)s",
-    datefmt="[%X]",
-    handlers=[RichHandler(rich_tracebacks=True)],
-)
 logger = logging.getLogger("generate-gemini-image")
 
 
@@ -46,8 +34,7 @@ def get_project_id(project_id_arg: Optional[str]) -> Optional[str]:
     return None
 
 
-@app.command()
-def init():
+def run_init():
     """
     Initialize the application configuration.
     Creates a secure .env file in ~/.config/generate-gemini-image/
@@ -61,7 +48,7 @@ def init():
 
     try:
         config_dir.mkdir(parents=True, exist_ok=True)
-        
+
         default_config = (
             "# Secure Configuration for Generate Gemini Image\n"
             "# Permissions set to 600 (User Read/Write Only)\n\n"
@@ -77,136 +64,151 @@ def init():
             "PERSON_GENERATION=allow_all\n"
             "ADD_WATERMARK=true\n"
         )
-        
+
         env_file.write_text(default_config)
         env_file.chmod(0o600)
-        
+
         console.print(f"[green]Initialized configuration at {env_file}[/green]")
         console.print("Please edit this file to add your API_KEY or PROJECT_ID.")
-        
+
     except Exception as e:
         console.print(f"[red]Failed to initialize configuration: {e}[/red]")
-        raise typer.Exit(code=1) from e
+        sys.exit(1)
 
 
-@app.callback(invoke_without_command=True)
-def main(
-    ctx: typer.Context,
-    prompt: Optional[str] = typer.Option(
-        None,
+def get_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="generate-gemini-image",
+        description="Modernized Gemini Image Generation CLI",
+        formatter_class=argparse.RawTextHelpFormatter,
+        epilog="""
+EXAMPLES:
+
+1. Basic Generation:
+   generate-gemini-image -p "A majestic lion on Mars"
+
+2. Styles & Variations:
+   generate-gemini-image -p "A city street" \
+       --style "Cyberpunk" --style "Neon" \
+       --variation "Rainy" --variation "Cinematic Lighting"
+
+3. Image Editing (Inpainting/Modification):
+   generate-gemini-image -p "Add a red hat to the cat" -i cat.png
+
+4. High Quality (4K, 16:9):
+   generate-gemini-image -p "Space battle fleet" \
+       --aspect-ratio "16:9" --image-size "4K"
+
+5. Piping from Stdin:
+   echo "A cyberpunk street food vendor" | generate-gemini-image
+
+6. Strict Count (Nano Banana):
+   generate-gemini-image -p "A robot" --count 4
+""",
+    )
+
+    # Global/Common Args
+    parser.add_argument(
+        "--verbose", "-v", action="store_true", help="Enable verbose logging."
+    )
+
+    # Subparsers
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
+
+    # Init Command
+    subparsers.add_parser("init", help="Initialize configuration.")
+
+    # Generation Arguments (Top Level)
+    parser.add_argument(
         "--prompt",
         "-p",
         help="The text prompt to generate an image from. Required unless piping stdin.",
-    ),
-    image: Optional[List[Path]] = typer.Option(
-        None,
+    )
+    parser.add_argument(
         "--image",
         "-i",
+        action="append",
+        type=Path,
         help=(
             "Reference image(s) for editing/composition. "
             "Can be specified multiple times."
         ),
-    ),
-    count: int = typer.Option(
-        1,
+    )
+    parser.add_argument(
         "--count",
         "-n",
-        help="Number of images to generate (Nano Banana strict).",
-        min=1,  # Ensure positive integer
-    ),
-    styles: Optional[List[str]] = typer.Option(
-        None,
+        type=int,
+        default=1,
+        help="Number of images to generate (Nano Banana strict). Default: 1",
+    )
+    parser.add_argument(
         "--style",
-        help=(
-            "Artistic styles to apply. Examples: 'Cyberpunk', 'Watercolor', "
-            "'Oil Painting', 'Photorealistic', 'Anime', 'Sketch', 'Vintage'."
-        ),
-    ),
-    variations: Optional[List[str]] = typer.Option(
-        None,
+        action="append",
+        help="Artistic styles to apply (e.g., 'Cyberpunk', 'Watercolor').",
+    )
+    parser.add_argument(
         "--variation",
-        help=(
-            "Visual variations to apply. Examples: 'Cinematic Lighting', 'Moody', "
-            "'Golden Hour', 'Minimalist', 'High Contrast', 'Pastel Colors'."
-        ),
-    ),
-    output_dir: Path = typer.Option(
-        None,
+        action="append",
+        help="Visual variations to apply (e.g., 'Cinematic Lighting').",
+    )
+    parser.add_argument(
         "--output-dir",
         "-o",
+        type=Path,
         help="Directory to save output. Defaults to ~/Pictures/Gemini_Generated.",
-    ),
-    filename: Optional[str] = typer.Option(
-        None,
+    )
+    parser.add_argument(
         "--filename",
         "-f",
         help="Specific filename for output image (e.g., 'result.png').",
-    ),
-    api_key: str = typer.Option(
-        None, "--api-key", help="Google AI Studio API Key (overrides env)."
-    ),
-    project_id: str = typer.Option(
-        None, "--project-id", help="GCP Project ID (overrides env)."
-    ),
-    location: str = typer.Option(
-        None, "--location", help="GCP Location (default: us-central1)."
-    ),
-    model_name: str = typer.Option(
-        None,
+    )
+    parser.add_argument("--api-key", help="Google AI Studio API Key (overrides env).")
+    parser.add_argument("--project-id", help="GCP Project ID (overrides env).")
+    parser.add_argument("--location", help="GCP Location (default: us-central1).")
+    parser.add_argument(
         "--model-name",
         help="Vertex AI Model (default: gemini-3-pro-image-preview).",
-    ),
-    aspect_ratio: str = typer.Option(
-        None,
+    )
+    parser.add_argument(
+        "--aspect-ratio",
         help="Aspect ratio. Options: '1:1', '16:9', '9:16', '4:3', '3:4'.",
-    ),
-    image_size: str = typer.Option(
-        None,
-        help="Image resolution. Options: '1K', '2K', '4K'.",
-    ),
-    negative_prompt: str = typer.Option(
-        None,
-        help="Items to exclude from the image (e.g., 'blur, distortion, people').",
-    ),
-    seed: int = typer.Option(
-        None,
-        help="Random seed for reproducible results (if supported by model).",
-    ),
-    verbose: bool = typer.Option(
-        False, "--verbose", "-v", help="Enable verbose logging."
-    ),
-):
-    """
-    Generate images using Gemini 3 Pro (Nano Banana Pro).
-    
-    This tool allows you to create high-quality images from text prompts,
-    edit existing images, and combine multiple images using Google's generative AI.
+    )
+    parser.add_argument(
+        "--image-size", help="Image resolution. Options: '1K', '2K', '4K'."
+    )
+    parser.add_argument(
+        "--negative-prompt",
+        help="Items to exclude from the image (e.g., 'blur, distortion').",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        help="Random seed for reproducible results.",
+    )
 
-    EXAMPLES:
-    
-    1. Basic Generation:
-       $ generate-gemini-image -p "A majestic lion on Mars"
+    return parser
 
-    2. Styles & Variations:
-       $ generate-gemini-image -p "A city street" \
-           --style "Cyberpunk" --style "Neon" \
-           --variation "Rainy" --variation "Cinematic Lighting"
 
-    3. Image Editing (Inpainting/Modification):
-       $ generate-gemini-image -p "Add a red hat to the cat" -i cat.png
+def main():
+    parser = get_parser()
+    args = parser.parse_args()
 
-    4. High Quality (4K, 16:9):
-       $ generate-gemini-image -p "Space battle fleet" \
-           --aspect-ratio "16:9" --image-size "4K"
+    # Configure logging
+    log_level = logging.DEBUG if args.verbose else logging.INFO
+    logging.basicConfig(
+        level=log_level,
+        format="%(message)s",
+        datefmt="[%X]",
+        handlers=[RichHandler(rich_tracebacks=True, show_path=False)],
+        force=True,
+    )
 
-    5. Piping from Stdin:
-       $ echo "A cyberpunk street food vendor" | generate-gemini-image
-    """
-    # If a subcommand (like 'init') is invoked, just return and let it run.
-    if ctx.invoked_subcommand is not None:
+    if args.command == "init":
+        run_init()
         return
 
     # Handle Stdin for Prompt
+    prompt = args.prompt
     if not prompt:
         # Check if there is data in stdin (and it's not a TTY)
         if not sys.stdin.isatty():
@@ -221,44 +223,42 @@ def main(
             "Use [bold]--prompt[/bold] or pipe text via stdin.\n"
             "Run [bold]generate-gemini-image --help[/bold] for usage."
         )
-        raise typer.Exit(code=0)
+        sys.exit(0)
 
     # --- Generation Logic ---
-    if verbose:
-        logger.setLevel(logging.DEBUG)
 
     # Resolve Configuration
-    resolved_api_key = api_key or settings.api_key
-    resolved_project_id = get_project_id(project_id)
-    resolved_location = location or settings.location
-    resolved_model_name = model_name or settings.model_name
-    resolved_output_dir = output_dir or settings.output_dir
-    resolved_aspect_ratio = aspect_ratio or settings.aspect_ratio
-    resolved_image_size = image_size or settings.image_size
-    
+    resolved_api_key = args.api_key or settings.api_key
+    resolved_project_id = get_project_id(args.project_id)
+    resolved_location = args.location or settings.location
+    resolved_model_name = args.model_name or settings.model_name
+    resolved_output_dir = args.output_dir or settings.output_dir
+    resolved_aspect_ratio = args.aspect_ratio or settings.aspect_ratio
+    resolved_image_size = args.image_size or settings.image_size
+
     # Validate Auth
     if not resolved_api_key and not resolved_project_id:
-         console.print(
+        console.print(
             "[bold red]Authentication missing.[/bold red] Provide either "
             "--api-key (or API_KEY in env)"
             "\nOR --project-id (or PROJECT_ID/ADC)."
         )
-         raise typer.Exit(code=1)
+        sys.exit(1)
 
     # "Nano Banana" Prompt Augmentation
     full_prompt = prompt
-    if styles:
-        style_text = ", ".join(styles)
+    if args.style:
+        style_text = ", ".join(args.style)
         full_prompt += f", in the style of {style_text}"
-    if variations:
-        var_text = ", ".join(variations)
+    if args.variation:
+        var_text = ", ".join(args.variation)
         full_prompt += f", with variations in {var_text}"
 
     if resolved_api_key:
         logger.info("Using Authentication: API Key")
     else:
         logger.info(f"Using Authentication: Vertex AI (Project: {resolved_project_id})")
-        
+
     logger.info(f"Model: {resolved_model_name}")
     logger.info(f"Full Prompt: {full_prompt}")
 
@@ -272,17 +272,17 @@ def main(
     try:
         files = generator.generate(
             prompt=full_prompt,
-            reference_images=image,
-            count=count,
+            reference_images=args.image,
+            count=args.count,
             aspect_ratio=resolved_aspect_ratio,
             image_size=resolved_image_size,
-            negative_prompt=negative_prompt,
+            negative_prompt=args.negative_prompt,
             person_generation=settings.person_generation,
             safety_filter_level=settings.safety_filter_level,
             add_watermark=settings.add_watermark,
-            seed=seed,
+            seed=args.seed,
             output_dir=resolved_output_dir,
-            filename=filename,
+            filename=args.filename,
         )
         console.print(
             f"[bold green]Successfully generated {len(files)} images.[/bold green]"
@@ -292,8 +292,8 @@ def main(
 
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
-        raise typer.Exit(code=1) from e
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    app()
+    main()

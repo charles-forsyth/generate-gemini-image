@@ -17,13 +17,13 @@ class ImageGenerator:
         model_name: str,
         api_key: Optional[str] = None,
         project_id: Optional[str] = None,
-        location: str = "us-central1"
+        location: str = "us-central1",
     ):
         self.model_name = model_name
         self.api_key = api_key
         self.project_id = project_id
         self.location = location
-        self._client = None
+        self._client: Optional[genai.Client] = None
 
         # Setup Environment for Vertex AI if strictly needed (legacy compat)
         if not self.api_key and self.project_id:
@@ -80,7 +80,6 @@ class ImageGenerator:
         output_dir: Path = Path("."),
         filename: Optional[str] = None,
     ) -> List[Path]:
-
         # 1. Handle Negative Prompt (Append logic)
         final_prompt = prompt
         if negative_prompt:
@@ -100,7 +99,7 @@ class ImageGenerator:
 
         # Prepare Content (Text + Images)
         contents: List[Union[str, Image.Image]] = [final_prompt]
-        
+
         if reference_images:
             logger.info(f"Using {len(reference_images)} reference image(s).")
             for img_path in reference_images:
@@ -117,7 +116,7 @@ class ImageGenerator:
         ensure_directory(output_dir)
 
         saved_files = []
-        
+
         valid_threshold = self._resolve_safety_threshold(safety_filter_level)
         logger.debug(
             f"Resolved Safety Threshold: {safety_filter_level} -> {valid_threshold}"
@@ -146,16 +145,16 @@ class ImageGenerator:
                             "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
                             "threshold": valid_threshold,
                         },
-                         {
+                        {
                             "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
                             "threshold": valid_threshold,
-                        }
+                        },
                     ],
                 }
-                
+
                 # Seed is not yet injected into config
                 if seed is not None:
-                    pass 
+                    pass
 
                 response = self.client.models.generate_content(
                     model=self.model_name,
@@ -185,8 +184,8 @@ class ImageGenerator:
                             suffix = Path(current_filename).suffix
                             # Ensure suffix exists if user provided filename without it
                             if not suffix and filename:
-                                suffix = ".png" # Default to png
-                            
+                                suffix = ".png"  # Default to png
+
                             # Add unique index
                             if filename:
                                 current_filename = f"{name_stem}_{i}{suffix}"
@@ -201,7 +200,7 @@ class ImageGenerator:
                         logger.info(f"Saved: {output_path}")
 
             except Exception as e:
-                logger.error(f"Image generation failed for iteration {i+1}: {e}")
+                logger.error(f"Image generation failed for iteration {i + 1}: {e}")
                 # We continue to try other iterations if one fails, or could raise
                 if i == count - 1 and not saved_files:
                     raise
