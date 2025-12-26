@@ -70,8 +70,8 @@ class ImageGenerator:
         )
 
         try:
-            # Use a capable text model for optimization
-            optimization_model = "gemini-2.0-flash-exp"
+            # Use the requested model for optimization
+            optimization_model = "gemini-3-pro-preview"
 
             response = self.client.models.generate_content(
                 model=optimization_model,
