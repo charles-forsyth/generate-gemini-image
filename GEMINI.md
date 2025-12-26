@@ -1,8 +1,8 @@
-# generate-gemini-image Project Context
+# lumina Project Context
 
 ## Project Overview
 
-**generate-gemini-image** is a modernized CLI tool designed for generating and editing images using Google's **Gemini 3 Pro** (Nano Banana Pro) models. It leverages the `google-genai` SDK to provide a robust interface for image synthesis, styling, and variation.
+**lumina** is a modernized CLI tool designed for generating and editing images using Google's **Gemini 3 Pro** (Nano Banana Pro) models. It leverages the `google-genai` SDK to provide a robust interface for image synthesis, styling, and variation.
 
 ### Key Features
 *   **Core Generation:** Text-to-image generation using `gemini-3-pro-image-preview`.
@@ -22,9 +22,9 @@
 *   **Output:** `rich` for terminal output.
 
 ### Key Files
-*   `src/generate_gemini_image/cli.py`: The main entry point using `typer`. Handles argument parsing and initialization.
-*   `src/generate_gemini_image/core.py`: Contains the `ImageGenerator` class, which interacts with the `google-genai` client.
-*   `src/generate_gemini_image/config.py`: Manages settings loading from environment variables and `.env` files.
+*   `src/lumina/cli.py`: The main entry point using `typer`. Handles argument parsing and initialization.
+*   `src/lumina/core.py`: Contains the `ImageGenerator` class, which interacts with the `google-genai` client.
+*   `src/lumina/config.py`: Manages settings loading from environment variables and `.env` files.
 *   `run_tests.sh`: A shell script for running functional CLI tests.
 
 ## Building and Running
@@ -38,28 +38,28 @@ uv tool install .
 
 To update:
 ```bash
-uv tool update generate-gemini-image
+uv tool update lumina
 ```
 
 ### Configuration
-Run the init command to generate the configuration file at `~/.config/generate-gemini-image/.env`:
+Run the init command to generate the configuration file at `~/.config/lumina/.env`:
 
 ```bash
-generate-gemini-image init
+lumina init
 ```
 
 ### Usage
-Run the CLI using the `generate-gemini-image` command:
+Run the CLI using the `lumina` command:
 
 ```bash
 # Basic generation
-generate-gemini-image -p "A futuristic city"
+lumina -p "A futuristic city"
 
 # With styles and count
-generate-gemini-image -p "A cat" --style "Watercolor" --count 2
+lumina -p "A cat" --style "Watercolor" --count 2
 
 # Image editing
-generate-gemini-image -p "Add sunglasses" -i input.png
+lumina -p "Add sunglasses" -i input.png
 ```
 
 ## Development & Testing

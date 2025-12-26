@@ -14,7 +14,10 @@ class Settings(BaseSettings):
     model_name: str = Field(
         "gemini-3-pro-image-preview", description="Gemini Model Name"
     )
-    output_dir: Path = Field(Path("."), description="Output directory for images")
+    output_dir: Path = Field(
+        Path.home() / "Pictures" / "Lumina_Generated",
+        description="Output directory for images",
+    )
 
     # Image Generation Defaults
     aspect_ratio: str = Field("1:1", description="Default aspect ratio")
@@ -27,7 +30,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_file=[
-            str(Path.home() / ".config" / "generate-gemini-image" / ".env"),
+            str(Path.home() / ".config" / "lumina" / ".env"),
             ".env",
         ],
         env_file_encoding="utf-8",

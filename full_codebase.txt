@@ -1,6 +1,6 @@
 === FILE: pyproject.toml ===
 [project]
-name = "generate-gemini-image"
+name = "lumina"
 version = "0.1.11"
 description = "Modernized Gemini Image Generation CLI"
 readme = "README.md"
@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.scripts]
-generate-gemini-image = "generate_gemini_image.cli:app"
+lumina = "lumina.cli:app"
 
 [build-system]
 requires = ["hatchling"]
@@ -35,7 +35,7 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/generate_gemini_image"]
+packages = ["src/lumina"]
 
 
 
@@ -61,13 +61,13 @@ A robust, secure, and distribution-ready CLI tool for generating and editing ima
 You can install this tool directly from the repository:
 
 ```bash
-uv tool install git+https://github.com/charles-forsyth/generate-gemini-image.git
+uv tool install git+https://github.com/charles-forsyth/lumina.git
 ```
 
 To update later:
 
 ```bash
-uv tool update generate-gemini-image
+uv tool update lumina
 ```
 
 ### Initial Setup
@@ -75,10 +75,10 @@ uv tool update generate-gemini-image
 After installation, run the initialization command to create your secure configuration file:
 
 ```bash
-generate-gemini-image init
+lumina init
 ```
 
-This will create `~/.config/generate-gemini-image/.env`. **Edit this file to set your authentication:**
+This will create `~/.config/lumina/.env`. **Edit this file to set your authentication:**
 
 **Option A: API Key (Simpler)**
 Get a key from [Google AI Studio](https://aistudio.google.com/).
@@ -97,13 +97,13 @@ PROJECT_ID=your_gcp_project_id
 ### 1. Basic Generation
 Generate a single image with default settings.
 ```bash
-generate-gemini-image -p "A futuristic city on Mars"
+lumina -p "A futuristic city on Mars"
 ```
 
 ### 2. Styles and Variations
 Apply artistic styles and variations to your prompt.
 ```bash
-generate-gemini-image -p "A portrait of a wizard" \
+lumina -p "A portrait of a wizard" \
     --style "Oil Painting" --style "Classical" \
     --variation "Dramatic Lighting" --variation "Moody"
 ```
@@ -113,20 +113,20 @@ generate-gemini-image -p "A portrait of a wizard" \
 ### 3. Image Editing (Inpainting)
 Modify an existing image by providing it as context. The model will interpret your prompt as an edit instruction.
 ```bash
-generate-gemini-image -p "Add sunglasses to the cat" -i cat.png
+lumina -p "Add sunglasses to the cat" -i cat.png
 ```
 
 ### 4. Multi-Image Composition
 Combine elements from multiple images.
 ```bash
-generate-gemini-image -p "Combine the style of image 1 with the subject of image 2" \
+lumina -p "Combine the style of image 1 with the subject of image 2" \
     -i style_ref.png -i subject_ref.png
 ```
 
 ### 5. High Quality (4K)
 Generate a high-resolution, wide-format image.
 ```bash
-generate-gemini-image -p "Space battle fleet" \
+lumina -p "Space battle fleet" \
     --aspect-ratio "16:9" \
     --image-size "4K"
 ```
@@ -134,22 +134,22 @@ generate-gemini-image -p "Space battle fleet" \
 ### 6. Strict Count (Nano Banana)
 Generate exactly `N` images (by running the request multiple times if needed).
 ```bash
-generate-gemini-image -p "A cute robot" --count 4
+lumina -p "A cute robot" --count 4
 ```
 
 ### 7. Piping from Stdin
 Great for chaining commands or reading from files.
 ```bash
-echo "A cyberpunk street food vendor" | generate-gemini-image
+echo "A cyberpunk street food vendor" | lumina
 ```
 ```bash
-cat prompt.txt | generate-gemini-image
+cat prompt.txt | lumina
 ```
 
 ### 8. Specific Filename
 Save the output to a specific file instead of auto-generating a name.
 ```bash
-generate-gemini-image -p "Logo" --filename "company_logo.png"
+lumina -p "Logo" --filename "company_logo.png"
 ```
 
 ## Configuration Reference (`.env`)
@@ -169,7 +169,7 @@ generate-gemini-image -p "Logo" --filename "company_logo.png"
 Private / Internal Use.
 
 
-=== FILE: src/generate_gemini_image/config.py ===
+=== FILE: src/lumina/config.py ===
 from pathlib import Path
 from typing import Optional
 
@@ -199,7 +199,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_file=[
-            str(Path.home() / ".config" / "generate-gemini-image" / ".env"),
+            str(Path.home() / ".config" / "lumina" / ".env"),
             ".env"
         ],
         env_file_encoding="utf-8",
@@ -208,7 +208,7 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-=== FILE: src/generate_gemini_image/utils.py ===
+=== FILE: src/lumina/utils.py ===
 import datetime
 import re
 from pathlib import Path
@@ -231,7 +231,7 @@ def ensure_directory(path: Path):
     path.mkdir(parents=True, exist_ok=True)
 
 
-=== FILE: src/generate_gemini_image/core.py ===
+=== FILE: src/lumina/core.py ===
 import logging
 import os
 from pathlib import Path
@@ -443,7 +443,7 @@ class ImageGenerator:
         return saved_files
 
 
-=== FILE: src/generate_gemini_image/cli.py ===
+=== FILE: src/lumina/cli.py ===
 import logging
 import sys
 from pathlib import Path
@@ -470,7 +470,7 @@ logging.basicConfig(
     datefmt="[%X]",
     handlers=[RichHandler(rich_tracebacks=True)],
 )
-logger = logging.getLogger("generate-gemini-image")
+logger = logging.getLogger("lumina")
 
 
 def get_project_id(project_id_arg: Optional[str]) -> Optional[str]:
@@ -492,9 +492,9 @@ def get_project_id(project_id_arg: Optional[str]) -> Optional[str]:
 def init():
     """
     Initialize the application configuration.
-    Creates a secure .env file in ~/.config/generate-gemini-image/
+    Creates a secure .env file in ~/.config/lumina/
     """
-    config_dir = Path.home() / ".config" / "generate-gemini-image"
+    config_dir = Path.home() / ".config" / "lumina"
     env_file = config_dir / ".env"
 
     if env_file.exists():
@@ -626,22 +626,22 @@ def main(
     EXAMPLES:
     
     1. Basic Generation:
-       $ generate-gemini-image -p "A majestic lion on Mars"
+       $ lumina -p "A majestic lion on Mars"
 
     2. Styles & Variations:
-       $ generate-gemini-image -p "A city street" \
+       $ lumina -p "A city street" \
            --style "Cyberpunk" --style "Neon" \
            --variation "Rainy" --variation "Cinematic Lighting"
 
     3. Image Editing (Inpainting/Modification):
-       $ generate-gemini-image -p "Add a red hat to the cat" -i cat.png
+       $ lumina -p "Add a red hat to the cat" -i cat.png
 
     4. High Quality (4K, 16:9):
-       $ generate-gemini-image -p "Space battle fleet" \
+       $ lumina -p "Space battle fleet" \
            --aspect-ratio "16:9" --image-size "4K"
 
     5. Piping from Stdin:
-       $ echo "A cyberpunk street food vendor" | generate-gemini-image
+       $ echo "A cyberpunk street food vendor" | lumina
     """
     # If a subcommand (like 'init') is invoked, just return and let it run.
     if ctx.invoked_subcommand is not None:
@@ -660,7 +660,7 @@ def main(
         console.print("[yellow]No command or prompt provided.[/yellow]")
         console.print(
             "Use [bold]--prompt[/bold] or pipe text via stdin.\n"
-            "Run [bold]generate-gemini-image --help[/bold] for usage."
+            "Run [bold]lumina --help[/bold] for usage."
         )
         raise typer.Exit(code=0)
 

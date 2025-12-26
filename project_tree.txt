@@ -4,7 +4,7 @@
 ├── README.md
 ├── run_tests.sh
 ├── src
-│   └── generate_gemini_image
+│   └── lumina
 │       ├── cli.py
 │       ├── config.py
 │       ├── core.py

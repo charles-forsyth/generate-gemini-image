@@ -13,7 +13,7 @@ from .config import settings
 from .core import ImageGenerator
 
 console = Console()
-logger = logging.getLogger("generate-gemini-image")
+logger = logging.getLogger("lumina")
 
 
 def get_project_id(project_id_arg: Optional[str]) -> Optional[str]:
@@ -37,9 +37,9 @@ def get_project_id(project_id_arg: Optional[str]) -> Optional[str]:
 def run_init():
     """
     Initialize the application configuration.
-    Creates a secure .env file in ~/.config/generate-gemini-image/
+    Creates a secure .env file in ~/.config/lumina/
     """
-    config_dir = Path.home() / ".config" / "generate-gemini-image"
+    config_dir = Path.home() / ".config" / "lumina"
     env_file = config_dir / ".env"
 
     if env_file.exists():
@@ -50,14 +50,14 @@ def run_init():
         config_dir.mkdir(parents=True, exist_ok=True)
 
         default_config = (
-            "# Secure Configuration for Generate Gemini Image\n"
+            "# Secure Configuration for Lumina\n"
             "# Permissions set to 600 (User Read/Write Only)\n\n"
             "# AUTHENTICATION (Choose One)\n"
             "API_KEY=\n"
             "PROJECT_ID=\n\n"
             "LOCATION=us-central1\n"
             "MODEL_NAME=gemini-3-pro-image-preview\n"
-            f"OUTPUT_DIR={Path.home() / 'Pictures' / 'Gemini_Generated'}\n"
+            f"OUTPUT_DIR={Path.home() / 'Pictures' / 'Lumina_Generated'}\n"
             "ASPECT_RATIO=1:1\n"
             "IMAGE_SIZE=1K\n"
             "SAFETY_FILTER_LEVEL=BLOCK_ONLY_HIGH\n"
@@ -78,32 +78,32 @@ def run_init():
 
 def get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="generate-gemini-image",
-        description="Modernized Gemini Image Generation CLI",
+        prog="lumina",
+        description="Lumina: Modernized Gemini Image Generation CLI",
         formatter_class=argparse.RawTextHelpFormatter,
         epilog="""
 EXAMPLES:
 
 1. Basic Generation:
-   generate-gemini-image -p "A majestic lion on Mars"
+   lumina -p "A majestic lion on Mars"
 
 2. Styles & Variations:
-   generate-gemini-image -p "A city street" \
+   lumina -p "A city street" \
        --style "Cyberpunk" --style "Neon" \
        --variation "Rainy" --variation "Cinematic Lighting"
 
 3. Image Editing (Inpainting/Modification):
-   generate-gemini-image -p "Add a red hat to the cat" -i cat.png
+   lumina -p "Add a red hat to the cat" -i cat.png
 
 4. High Quality (4K, 16:9):
-   generate-gemini-image -p "Space battle fleet" \
+   lumina -p "Space battle fleet" \
        --aspect-ratio "16:9" --image-size "4K"
 
 5. Piping from Stdin:
-   echo "A cyberpunk street food vendor" | generate-gemini-image
+   echo "A cyberpunk street food vendor" | lumina
 
 6. Strict Count (Nano Banana):
-   generate-gemini-image -p "A robot" --count 4
+   lumina -p "A robot" --count 4
 """,
     )
 
@@ -155,7 +155,7 @@ EXAMPLES:
         "--output-dir",
         "-o",
         type=Path,
-        help="Directory to save output. Defaults to ~/Pictures/Gemini_Generated.",
+        help="Directory to save output. Defaults to ~/Pictures/Lumina_Generated.",
     )
     parser.add_argument(
         "--filename",
@@ -221,7 +221,7 @@ def main():
         console.print("[yellow]No command or prompt provided.[/yellow]")
         console.print(
             "Use [bold]--prompt[/bold] or pipe text via stdin.\n"
-            "Run [bold]generate-gemini-image --help[/bold] for usage."
+            "Run [bold]lumina --help[/bold] for usage."
         )
         sys.exit(0)
 

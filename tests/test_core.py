@@ -2,12 +2,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from generate_gemini_image.core import ImageGenerator
+from lumina.core import ImageGenerator
 
 
 @pytest.fixture
 def mock_genai_client():
-    with patch("generate_gemini_image.core.genai.Client") as mock:
+    with patch("lumina.core.genai.Client") as mock:
         yield mock
 
 
